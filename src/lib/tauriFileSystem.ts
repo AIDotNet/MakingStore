@@ -381,10 +381,10 @@ class TauriFileSystemManager {
         ? `tools: "${prompt.allowedTools.join(', ')}"` 
         : '',
       '---',
-      ''
+      '',
     ].filter(Boolean).join('\n');
 
-    return frontmatter + prompt.content;
+    return frontmatter+"\n"+ prompt.content;
   }
 
   /**

@@ -64,13 +64,6 @@ const CodexManagement: React.FC = () => {
   const [showPromptDialog, setShowPromptDialog] = useState(false);
   const [editingPrompt, setEditingPrompt] = useState<CustomPrompt | null>(null);
 
-  // Tab动画状态
-  const [isTabTransitioning, setIsTabTransitioning] = useState(false);
-  const [previousTab, setPreviousTab] = useState<string>('home');
-
-  // Tab顺序映射，用于确定动画方向
-  const tabOrder = ['home', 'projects', 'prompts', 'channels'];
-
   useEffect(() => {
     checkCodexInstallation();
     initializeTauriFileSystem();
@@ -356,29 +349,6 @@ const CodexManagement: React.FC = () => {
      setEditingPrompt(null);
    };
 
-  // 处理tab切换动画
-  const handleTabChange = (newTab: string) => {
-    if (newTab === activeTab) return;
-    
-    setIsTabTransitioning(true);
-    setPreviousTab(activeTab);
-    
-    // 延迟设置新的activeTab，让动画有时间执行
-    setTimeout(() => {
-      setActiveTab(newTab);
-      setTimeout(() => {
-        setIsTabTransitioning(false);
-      }, 300); // 与CSS动画时间匹配
-    }, 50);
-  };
-
-  // 获取动画方向
-  const getAnimationDirection = (currentTab: string, previousTab: string) => {
-    const currentIndex = tabOrder.indexOf(currentTab);
-    const previousIndex = tabOrder.indexOf(previousTab);
-    return currentIndex > previousIndex ? 'right' : 'left';
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-48">
@@ -469,7 +439,7 @@ const CodexManagement: React.FC = () => {
 
       {/* 标签页导航和内容 */}
       <div className="flex-1 overflow-auto">
-        <Tabs value={activeTab} onValueChange={handleTabChange} className="h-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full">
           <div className="border-b">
             <TabsList className="h-auto p-0 bg-transparent">
               <TabsTrigger value="home" className="flex items-center gap-2 px-3 py-2">
@@ -490,55 +460,43 @@ const CodexManagement: React.FC = () => {
               </TabsTrigger>
             </TabsList>
           </div>
-          
-          {/* Tab内容容器，添加动画效果 */}
-          <div className="relative overflow-hidden">
-            <div 
-              className={`transition-transform duration-300 ease-in-out ${
-                isTabTransitioning 
-                  ? getAnimationDirection(activeTab, previousTab) === 'right' 
-                    ? 'transform translate-x-full' 
-                    : 'transform -translate-x-full'
-                  : 'transform translate-x-0'
-              }`}
-            >
-              <TabsContent value="home" className="p-6 space-y-6 m-0">
-                {/* 快速状态卡片 */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Card>
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-xs text-muted-foreground">当前版本</p>
-                          <p className="text-lg font-bold">{version}</p>
-                        </div>
-                        <Badge variant="secondary" className="text-xs">
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                          已安装
-                        </Badge>
-                      </div>
-                    </CardContent>
-                  </Card>
+          <TabsContent value="home" className="p-6 space-y-6">
+            {/* 快速状态卡片 */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs text-muted-foreground">当前版本</p>
+                      <p className="text-lg font-bold">{version}</p>
+                    </div>
+                    <Badge variant="secondary" className="text-xs">
+                      <CheckCircle className="h-3 w-3 mr-1" />
+                      已安装
+                    </Badge>
+                  </div>
+                </CardContent>
+              </Card>
 
-                  <Card>
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-xs text-muted-foreground">项目数量</p>
-                          <p className="text-lg font-bold">{projects.length}</p>
-                        </div>
-                        <Folder className="h-6 w-6 text-muted-foreground" />
-                      </div>
-                    </CardContent>
-                  </Card>
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs text-muted-foreground">项目数量</p>
+                      <p className="text-lg font-bold">{projects.length}</p>
+                    </div>
+                    <Folder className="h-6 w-6 text-muted-foreground" />
+                  </div>
+                </CardContent>
+              </Card>
 
-                  <Card>
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-xs text-muted-foreground">自定义命令</p>
-                          <p className="text-lg font-bold">{prompts.length}</p>
-                        </div>
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs text-muted-foreground">自定义命令</p>
+                      <p className="text-lg font-bold">{prompts.length}</p>
+                    </div>
                     <Terminal className="h-6 w-6 text-muted-foreground" />
                   </div>
                 </CardContent>
@@ -552,7 +510,7 @@ const CodexManagement: React.FC = () => {
                 <Button
                   variant="outline"
                   className="h-auto flex-col gap-2 p-4"
-                  onClick={() => handleTabChange('projects')}
+                  onClick={() => setActiveTab('projects')}
                 >
                   <Folder className="h-6 w-6" />
                   <span className="text-sm">管理项目</span>
@@ -560,7 +518,7 @@ const CodexManagement: React.FC = () => {
                 <Button
                   variant="outline"
                   className="h-auto flex-col gap-2 p-4"
-                  onClick={() => handleTabChange('prompts')}
+                  onClick={() => setActiveTab('prompts')}
                 >
                   <Terminal className="h-6 w-6" />
                   <span className="text-sm">自定义提示词</span>
@@ -568,7 +526,7 @@ const CodexManagement: React.FC = () => {
                 <Button
                   variant="outline"
                   className="h-auto flex-col gap-2 p-4"
-                  onClick={() => handleTabChange('channels')}
+                  onClick={() => setActiveTab('channels')}
                 >
                   <Globe className="h-6 w-6" />
                   <span className="text-sm">渠道管理</span>
@@ -685,7 +643,7 @@ const CodexManagement: React.FC = () => {
             </div>
           </TabsContent>
 
-          <TabsContent value="prompts" className="p-6 m-0">
+          <TabsContent value="prompts" className="p-6">
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h3 className="text-base font-semibold">自定义提示词管理</h3>
@@ -804,7 +762,7 @@ const CodexManagement: React.FC = () => {
             )}
           </TabsContent>
 
-          <TabsContent value="channels" className="p-6 m-0">
+          <TabsContent value="channels" className="p-6">
             <div className="mb-6">
               <h3 className="text-base font-semibold">渠道管理</h3>
               <p className="text-sm text-muted-foreground mt-1">管理您的 AI 服务渠道配置</p>
