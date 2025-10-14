@@ -1,6 +1,6 @@
 import { readTextFile, writeTextFile, exists, readDir, mkdir } from '@tauri-apps/plugin-fs';
 import { open } from '@tauri-apps/plugin-dialog';
-import type { CustomPrompt, PromptExport } from '../types/customPrompt';
+import type { CustomPrompt } from '../types/customPrompt';
 
 export interface CodexConfig {
   prompts: CustomPrompt[];

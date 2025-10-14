@@ -11,20 +11,20 @@ import {
   AlertDialogDescription, 
   AlertDialogFooter, 
   AlertDialogHeader, 
-  AlertDialogTitle, 
-  AlertDialogTrigger 
+  AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Spinner } from '@/components/ui/spinner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { Folder, Plus, Trash2, RefreshCw, Settings, Home, Terminal, Globe, CheckCircle, Edit } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Folder, Plus, Trash2, RefreshCw,  Home, Terminal, Globe, CheckCircle, Edit, ChevronDown, Store } from 'lucide-react';
 import { tauriFileSystemManager } from '../../lib/tauriFileSystem';
 import { CustomPrompt } from '../../types/customPrompt';
 import { open } from '@tauri-apps/plugin-dialog';
 import { AddPromptDialog } from '@/components/AddPromptDialog';
+import { PromptStoreDialog } from '@/components/PromptStoreDialog';
 
 interface Project {
   id: string;
@@ -60,9 +60,11 @@ const CodexManagement: React.FC = () => {
   // 自定义提示词状态
   const [prompts, setPrompts] = useState<CustomPrompt[]>([]);
   const [isLoadingPrompts, setIsLoadingPrompts] = useState(false);
-  const [promptsError, setPromptsError] = useState<string | null>(null);
   const [showPromptDialog, setShowPromptDialog] = useState(false);
+  const [showPromptStoreDialog, setShowPromptStoreDialog] = useState(false);
   const [editingPrompt, setEditingPrompt] = useState<CustomPrompt | null>(null);
+  const [deletePromptDialogOpen, setDeletePromptDialogOpen] = useState(false);
+  const [promptToDelete, setPromptToDelete] = useState<CustomPrompt | null>(null);
 
   useEffect(() => {
     checkCodexInstallation();
@@ -330,23 +332,58 @@ const CodexManagement: React.FC = () => {
     }
   };
 
-   const handleDeletePrompt = async (prompt: CustomPrompt) => {
-     if (!confirm(`确定要删除提示词 "/${prompt.name}" 吗？`)) {
-       return;
-     }
+  // 从商店安装提示词
+  const handleInstallFromStore = async (onlinePrompt: any, content: string) => {
+    try {
+      const newPrompt: CustomPrompt = {
+        id: `prompt-${Date.now()}`,
+        name: onlinePrompt.name,
+        description: onlinePrompt.description,
+        content: content,
+        category: onlinePrompt.category,
+        scope: 'user' as const,
+        filePath: `${onlinePrompt.name}.md`,
+        allowedTools: [],
+        arguments: [],
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      
+      await tauriFileSystemManager.saveCodexPrompt(newPrompt);
+      
+      // 重新加载提示词列表
+      await loadPrompts();
+      
+      setError('');
+    } catch (error) {
+      console.error('安装提示词失败:', error);
+      setError(`安装提示词失败: ${error}`);
+      throw error;
+    }
+  };
+
+  // 打开商店对话框
+  const handleOpenPromptStore = () => {
+    setShowPromptStoreDialog(true);
+  };
+
+   const handleDeletePrompt = (prompt: CustomPrompt) => {
+     setPromptToDelete(prompt);
+     setDeletePromptDialogOpen(true);
+   };
+
+   const confirmDeletePrompt = async () => {
+     if (!promptToDelete) return;
 
      try {
-       await tauriFileSystemManager.deleteCodexPrompt(prompt);
+       await tauriFileSystemManager.deleteCodexPrompt(promptToDelete);
        await loadPrompts();
+       setDeletePromptDialogOpen(false);
+       setPromptToDelete(null);
      } catch (error) {
        console.error('删除提示词失败:', error);
        setError(`删除提示词失败: ${error}`);
      }
-   };
-
-   const handleCancelEdit = () => {
-     setShowPromptDialog(false);
-     setEditingPrompt(null);
    };
 
   if (loading) {
@@ -650,15 +687,29 @@ const CodexManagement: React.FC = () => {
                 <p className="text-sm text-muted-foreground mt-1">管理您的自定义 Codex 提示词</p>
               </div>
               <div className="flex gap-2">
-                <Button
-                  onClick={handleCreatePrompt}
-                  variant="default"
-                  size="sm"
-                  className="h-9"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  添加提示词
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      className="h-9"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      添加提示词
+                      <ChevronDown className="h-4 w-4 ml-2" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={handleCreatePrompt}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      自定义提示词
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleOpenPromptStore}>
+                      <Store className="h-4 w-4 mr-2" />
+                      从商店安装
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 <Button
                   onClick={loadPrompts}
                   variant="outline"
@@ -678,6 +729,13 @@ const CodexManagement: React.FC = () => {
               onSave={handleSavePrompt}
               editingPrompt={editingPrompt}
               error={error}
+            />
+
+            {/* 提示词商店弹窗 */}
+            <PromptStoreDialog
+              open={showPromptStoreDialog}
+              onOpenChange={setShowPromptStoreDialog}
+              onInstall={handleInstallFromStore}
             />
 
             {isLoadingPrompts ? (
@@ -858,6 +916,32 @@ const CodexManagement: React.FC = () => {
               disabled={!newProjectName.trim() || !selectedPath}
             >
               创建项目
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* 删除提示词确认对话框 */}
+      <AlertDialog open={deletePromptDialogOpen} onOpenChange={setDeletePromptDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认删除提示词</AlertDialogTitle>
+            <AlertDialogDescription>
+              您确定要删除提示词 "/{promptToDelete?.name}" 吗？此操作无法撤销。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setDeletePromptDialogOpen(false);
+              setPromptToDelete(null);
+            }}>
+              取消
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDeletePrompt}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              删除
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

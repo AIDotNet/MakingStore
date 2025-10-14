@@ -1,7 +1,5 @@
 import React from 'react'
-import { SidebarInset, SidebarTrigger } from '@/components/ui/sidebar'
-import { Separator } from '@/components/ui/separator'
-import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb'
+import { SidebarInset } from '@/components/ui/sidebar'
 
 interface MainContentProps {
   children: React.ReactNode
