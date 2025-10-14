@@ -1,6 +1,6 @@
 [package]
 name = "makingstore"
-version = "0.1.2"
+version = "0.1.3"
 description = "Making Store is a Tauri App for managing your Codex prompts."
 authors = ["AIDotNet"]
 edition = "2021"
