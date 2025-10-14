@@ -11,6 +11,7 @@ import {
   Bot,
   Store,
   Settings,
+  Network,
 } from 'lucide-react'
 
 const menuItems = [
@@ -33,6 +34,11 @@ const menuItems = [
     title: 'Claude Code Store',
     url: '/claude-code-store',
     icon: Store,
+  },
+  {
+    title: 'MCP服务管理',
+    url: '/mcp-management',
+    icon: Network,
   },
   {
     title: '系统设置',

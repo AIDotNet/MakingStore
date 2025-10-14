@@ -1,6 +1,9 @@
 use std::process::Command;
 use tauri_plugin_dialog::DialogExt;
 
+mod resource_manager;
+use resource_manager::{get_executable_path, check_executable_exists, execute_external_tool};
+
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -153,7 +156,10 @@ pub fn run() {
             select_folder,
             open_folder_in_codex,
             execute_command,
-            open_project_in_terminal
+            open_project_in_terminal,
+            get_executable_path,
+            check_executable_exists,
+            execute_external_tool
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

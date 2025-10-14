@@ -4,6 +4,7 @@ import Dashboard from '../pages/Dashboard'
 import CodexManagement from '../pages/CodexManagement'
 import ClaudeCodeManagement from '../pages/ClaudeCodeManagement'
 import ClaudeCodeStore from '../pages/ClaudeCodeStore'
+import MCPManagement from '../pages/MCPManagement'
 import Settings from '../pages/Settings'
 
 const routes = [
@@ -31,6 +32,11 @@ const routes = [
     path: '/claude-code-store',
     component: ClaudeCodeStore,
     title: 'Claude Code Store'
+  },
+  {
+    path: '/mcp-management',
+    component: MCPManagement,
+    title: 'MCP服务管理'
   },
   {
     path: '/settings',
