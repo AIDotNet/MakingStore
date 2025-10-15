@@ -6,8 +6,8 @@ use tauri::{Manager, Emitter};
 use std::os::windows::process::CommandExt;
 use tauri_plugin_dialog::DialogExt;
 
-mod resource_manager;
-use resource_manager::{get_executable_path, check_executable_exists, execute_external_tool};
+mod resource_manager_fixed;
+use resource_manager_fixed::{get_executable_path, check_executable_exists, execute_external_tool};
 
 #[derive(Default)]
 struct McpState {

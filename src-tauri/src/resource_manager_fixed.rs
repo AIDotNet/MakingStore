@@ -33,6 +33,13 @@ impl ResourceManager {
                     }
                 }
                 
+                // 尝试其他可能的路径
+                if let Some(alternative_path) = self.try_alternative_paths(exe_name) {
+                    if alternative_path.exists() {
+                        return Ok(alternative_path);
+                    }
+                }
+                
                 // 返回原始路径，即使不存在
                 Ok(path)
             }
@@ -55,6 +62,41 @@ impl ResourceManager {
             }
         }
         
+        None
+    }
+
+    /// 尝试其他可能的路径
+    fn try_alternative_paths(&self, exe_name: &str) -> Option<PathBuf> {
+        // 尝试直接在 src-tauri/resources/bin/windows/ 目录下查找
+        if let Ok(app_dir) = self.app_handle.path().app_data_dir() {
+            // 获取应用目录的父目录，然后构建到 src-tauri/resources 的路径
+            if let Some(parent) = app_dir.parent() {
+                if let Some(grandparent) = parent.parent() {
+                    let src_tauri_resources = grandparent.join("src-tauri").join("resources").join("bin").join(self.get_platform_dir()).join(exe_name);
+                    if src_tauri_resources.exists() {
+                        return Some(src_tauri_resources);
+                    }
+                }
+            }
+        }
+
+        // 尝试相对于当前工作目录的路径
+        let current_dir = std::env::current_dir().ok()?;
+        let relative_path = current_dir.join("src-tauri").join("resources").join("bin").join(self.get_platform_dir()).join(exe_name);
+        if relative_path.exists() {
+            return Some(relative_path);
+        }
+
+        // 尝试相对于可执行文件目录的路径
+        if let Ok(exe_path) = std::env::current_exe() {
+            if let Some(exe_dir) = exe_path.parent() {
+                let exe_relative_path = exe_dir.join("resources").join("bin").join(self.get_platform_dir()).join(exe_name);
+                if exe_relative_path.exists() {
+                    return Some(exe_relative_path);
+                }
+            }
+        }
+
         None
     }
 

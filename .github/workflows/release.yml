@@ -36,7 +36,7 @@ on:
 
 jobs:
   build:
-    name: Build Windows and macOS Installers
+    name: Build Windows Installer
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -44,11 +44,6 @@ jobs:
         include:
           - os: windows-latest
             target: windows
-          - os: macos-latest
-            target: macos
-    env:
-      TAURI_ACTIONS_PRIVATE_KEY: ${{ secrets.TAURI_ACTIONS_PRIVATE_KEY }}
-      TAURI_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_PRIVATE_KEY_PASSWORD }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -62,7 +57,7 @@ jobs:
         run: npm install
 
       - name: Install Tauri CLI (global)
-        run: npm install -g @tauri-apps/cli
+        run: npm install -g @tauri-apps/cli 
 
       - name: Set up Rust toolchain
         uses: dtolnay/rust-toolchain@stable
