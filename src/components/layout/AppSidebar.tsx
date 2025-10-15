@@ -7,16 +7,12 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
-  useSidebar,
 } from '@/components/ui/sidebar'
 import { Logo } from './Logo'
 import { Navigation } from './Navigation'
 import { ThemeToggle } from './ThemeToggle'
 
 export function AppSidebar() {
-  const { state } = useSidebar()
-  const isCollapsed = state === 'collapsed'
-
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>

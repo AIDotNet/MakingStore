@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Settings, Save, RefreshCw, FileText } from 'lucide-react';
+import { Settings, Save, RefreshCw } from 'lucide-react';
 import Editor, { useMonaco } from '@monaco-editor/react';
 import { useTheme } from 'next-themes';
 import { tauriFileSystemManager } from '../../../lib/tauriFileSystem';
