@@ -89,7 +89,7 @@ impl ResourceManager {
         return "unknown";
     }
 
-    /// 执行外部可执行文件
+    /// 执行外部工具
     pub async fn execute_external_tool(
         &self,
         exe_name: &str,
@@ -105,46 +105,47 @@ impl ResourceManager {
             .args(args)
             .output()
             .map_err(|e| format!("Failed to execute {}: {}", exe_name, e))
-
     }
 }
 
-/// Tauri 命令：获取可执行文件路径
+// Tauri 命令函数
 #[tauri::command]
 pub async fn get_executable_path(
     app_handle: AppHandle,
     exe_name: String,
 ) -> Result<String, String> {
-    let resource_manager = ResourceManager::new(app_handle);
-    let path = resource_manager.get_executable_path(&exe_name)?;
-    Ok(path.to_string_lossy().to_string())
+    let manager = ResourceManager::new(app_handle);
+    manager.get_executable_path(&exe_name).map(|p| p.to_string_lossy().to_string())
 }
 
-/// Tauri 命令：检查可执行文件是否存在
 #[tauri::command]
 pub async fn check_executable_exists(
     app_handle: AppHandle,
     exe_name: String,
 ) -> Result<bool, String> {
-    let resource_manager = ResourceManager::new(app_handle);
-    Ok(resource_manager.executable_exists(&exe_name))
+    let manager = ResourceManager::new(app_handle);
+    Ok(manager.executable_exists(&exe_name))
 }
 
-/// Tauri 命令：执行外部工具
 #[tauri::command]
 pub async fn execute_external_tool(
     app_handle: AppHandle,
     exe_name: String,
     args: Vec<String>,
 ) -> Result<String, String> {
-    let resource_manager = ResourceManager::new(app_handle);
+    let manager = ResourceManager::new(app_handle);
     let args_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
     
-    let output = resource_manager.execute_external_tool(&exe_name, args_refs).await?;
-    
-    if output.status.success() {
-        Ok(String::from_utf8_lossy(&output.stdout).to_string())
-    } else {
-        Err(String::from_utf8_lossy(&output.stderr).to_string())
+    match manager.execute_external_tool(&exe_name, args_refs).await {
+        Ok(output) => {
+            if output.status.success() {
+                Ok(String::from_utf8_lossy(&output.stdout).to_string())
+            } else {
+                Err(format!("Command failed with exit code: {:?}\nStderr: {}", 
+                           output.status.code(), 
+                           String::from_utf8_lossy(&output.stderr)))
+            }
+        }
+        Err(e) => Err(e)
     }
 }

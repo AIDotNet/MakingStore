@@ -24,7 +24,7 @@ export class ResourceManagerDebugger {
     console.log(`原始文件名: ${executableName}`);
     console.log(`平台特定文件名: ${platformName}`);
 
-    const result = {
+    let result : any = {
       platform: navigator.platform,
       executableName: platformName,
       exists: false,
@@ -54,7 +54,15 @@ export class ResourceManagerDebugger {
         try {
           result.rawPath = await ResourceManager.getExecutablePath(platformName);
           console.log(`原始路径: ${result.rawPath}`);
-          result.suggestions.push('文件路径可以解析但检查存在性失败，可能是权限或开发环境问题');
+          
+          // 检查路径是否指向错误的位置
+          if (result.rawPath && (result.rawPath.includes('target\\debug\\bin\\') || result.rawPath.includes('target/debug/bin/'))) {
+            result.suggestions.push('🔍 发现路径解析问题：Tauri 在开发模式下应该查找 target/debug/resources/bin/ 而不是 target/debug/bin/');
+            result.suggestions.push('📁 实际文件位置应该在：target/debug/resources/bin/windows/');
+            result.suggestions.push('⚙️ 这是 Tauri 资源路径解析的已知问题，需要修复资源管理器代码');
+          } else {
+            result.suggestions.push('文件路径可以解析但检查存在性失败，可能是权限或开发环境问题');
+          }
         } catch (rawError) {
           console.error('直接路径获取也失败:', rawError);
           result.error = `路径解析失败: ${rawError}`;
