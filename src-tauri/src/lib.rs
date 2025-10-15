@@ -82,8 +82,18 @@ async fn execute_command(command: String, args: Vec<String>) -> Result<String, S
     }
 }
 
-#[tauri::command]
-async fn open_project_in_terminal(path: String, launch_mode: Option<String>) -> Result<String, String> {
+#[tauri::command(rename_all = "camelCase")]
+async fn open_project_in_terminal(
+    path: String, 
+    launch_mode: Option<String>, 
+    environment_variables: Option<String>
+) -> Result<String, String> {
+    // 添加调试日志
+    println!("=== open_project_in_terminal called ===");
+    println!("Path: {}", path);
+    println!("Launch mode: {:?}", launch_mode);
+    println!("Environment variables received: {:?}", environment_variables);
+    
     // 确定启动命令
     let codex_command = match launch_mode.as_deref() {
         Some("bypass") => "codex --dangerously-bypass-approvals-and-sandbox",
@@ -91,41 +101,98 @@ async fn open_project_in_terminal(path: String, launch_mode: Option<String>) -> 
         _ => "codex", // 默认使用普通模式
     };
     
+    // 解析环境变量
+    let env_vars = if let Some(env_str) = environment_variables {
+        println!("Environment Variables String: {}", env_str);
+        let parsed_vars = parse_environment_variables(&env_str);
+        println!("Parsed Environment Variables: {:?}", parsed_vars);
+        parsed_vars
+    } else {
+        println!("No environment variables provided");
+        Vec::new()
+    };
+    
+    // 构建环境变量设置命令
+    let env_commands = if !env_vars.is_empty() {
+        env_vars.iter()
+            .map(|(key, value)| format!("$env:{}='{}'", key, value))
+            .collect::<Vec<_>>()
+            .join("; ")
+    } else {
+        String::new()
+    };
+    
+    println!("Environment Commands: {}", env_commands);
+
     // 根据操作系统打开终端并在项目目录中执行codex
     let result = if cfg!(target_os = "windows") {
-        // Windows: 打开PowerShell并执行命令
+        // Windows: 打开新的PowerShell窗口并执行命令
+        let full_command = if !env_commands.is_empty() {
+            format!("Set-Location '{}'; {}; {}", path, env_commands, codex_command)
+        } else {
+            format!("Set-Location '{}'; {}", path, codex_command)
+        };
+        
+        println!("Full PowerShell command: {}", full_command);
+        
+        // 使用Start-Process打开新的PowerShell窗口
+        let start_process_command = format!(
+            "Start-Process powershell -ArgumentList '-NoExit', '-Command', '{}' -WindowStyle Normal",
+            full_command.replace("'", "''")  // 转义单引号
+        );
+        
         Command::new("powershell")
-            .args(&["-Command", &format!("Start-Process powershell -ArgumentList '-NoExit', '-Command', 'Set-Location \"{}\"; {}'", path, codex_command)])
+            .args(&["-Command", &start_process_command])
             .spawn()
             .map_err(|e| format!("Failed to open terminal on Windows: {}", e))?;
         format!("Successfully opened terminal and executed {} on Windows", codex_command)
     } else if cfg!(target_os = "macos") {
         // macOS: 使用Terminal.app
+        let full_command = if !env_vars.is_empty() {
+            let env_exports = env_vars.iter()
+                .map(|(key, value)| format!("export {}=\"{}\"", key, value))
+                .collect::<Vec<_>>()
+                .join(" && ");
+            format!("cd '{}' && {} && {}", path, env_exports, codex_command)
+        } else {
+            format!("cd '{}' && {}", path, codex_command)
+        };
+        
         Command::new("osascript")
             .args(&[
                 "-e",
-                &format!("tell application \"Terminal\" to do script \"cd '{}' && {}\"", path, codex_command)
+                &format!("tell application \"Terminal\" to do script \"{}\"", full_command)
             ])
             .spawn()
             .map_err(|e| format!("Failed to open terminal on macOS: {}", e))?;
         format!("Successfully opened terminal and executed {} on macOS", codex_command)
     } else {
         // Linux: 尝试使用常见的终端模拟器
+        let full_command = if !env_vars.is_empty() {
+            let env_exports = env_vars.iter()
+                .map(|(key, value)| format!("export {}=\"{}\"", key, value))
+                .collect::<Vec<_>>()
+                .join(" && ");
+            format!("cd '{}' && {} && {}; exec bash", path, env_exports, codex_command)
+        } else {
+            format!("cd '{}' && {}; exec bash", path, codex_command)
+        };
+        
         let terminals = ["gnome-terminal", "konsole", "xterm", "x-terminal-emulator"];
         let mut success = false;
         
         for terminal in &terminals {
             let result = if *terminal == "gnome-terminal" {
                 Command::new(terminal)
-                    .args(&["--", "bash", "-c", &format!("cd '{}' && {}; exec bash", path, codex_command)])
+                    .args(&["--", "bash", "-c", &full_command])
                     .spawn()
             } else if *terminal == "konsole" {
                 Command::new(terminal)
-                    .args(&["-e", "bash", "-c", &format!("cd '{}' && {}; exec bash", path, codex_command)])
+                    .args(&["-e", "bash", "-c", &full_command])
                     .spawn()
             } else {
                 Command::new(terminal)
-                    .args(&["-e", "bash", "-c", &format!("cd '{}' && {}; exec bash", path, codex_command)])
+                    .args(&["-e", "bash", "-c", &full_command])
                     .spawn()
             };
             
@@ -143,6 +210,31 @@ async fn open_project_in_terminal(path: String, launch_mode: Option<String>) -> 
     };
 
     Ok(result)
+}
+
+// 解析环境变量字符串
+fn parse_environment_variables(env_str: &str) -> Vec<(String, String)> {
+    env_str
+        .lines()
+        .filter_map(|line| {
+            let line = line.trim();
+            if line.is_empty() || line.starts_with('#') {
+                return None;
+            }
+            
+            if let Some(eq_pos) = line.find('=') {
+                let key = line[..eq_pos].trim().to_string();
+                let value = line[eq_pos + 1..].trim().to_string();
+                if !key.is_empty() {
+                    Some((key, value))
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        })
+        .collect()
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

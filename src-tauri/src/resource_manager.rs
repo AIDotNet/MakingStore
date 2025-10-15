@@ -58,14 +58,6 @@ impl ResourceManager {
         None
     }
 
-    /// 获取资源文件路径
-    pub fn get_resource_path(&self, resource_path: &str) -> Result<PathBuf, String> {
-        self.app_handle
-            .path()
-            .resolve(resource_path, BaseDirectory::Resource)
-            .map_err(|e| format!("Failed to resolve resource path: {}", e))
-    }
-
     /// 检查可执行文件是否存在
     pub fn executable_exists(&self, exe_name: &str) -> bool {
         match self.get_executable_path(exe_name) {

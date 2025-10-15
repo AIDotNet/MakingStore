@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { AppLayout } from "./components/layout";
-import { debugResourceManager } from "./lib/debugResourceManager";
 import routes from "./routes";
 
 function App() {

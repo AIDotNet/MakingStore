@@ -14,7 +14,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         <TitleBar />
         <div className="flex flex-1">
           <AppSidebar />
-          <MainContent>
+          <MainContent >
             {children}
           </MainContent>
         </div>

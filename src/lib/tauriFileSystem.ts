@@ -494,6 +494,96 @@ class TauriFileSystemManager {
       return null;
     }
   }
+  /**
+   * 读取 ~/.codex/AGENT.md 文件
+   */
+  async readAgentFile(): Promise<string> {
+    try {
+      const homePath = await this.getHomePath();
+      const codexPath = `${homePath}/.codex`;
+      const agentFilePath = `${codexPath}/AGENT.md`;
+      
+      // 检查 .codex 目录是否存在，不存在则创建
+      if (!(await exists(codexPath))) {
+        await this.createCodexDirectory();
+      }
+      
+      // 检查 AGENT.md 文件是否存在
+      if (await exists(agentFilePath)) {
+        return await readTextFile(agentFilePath);
+      } else {
+        // 文件不存在，创建一个空文件
+        const defaultContent = 
+`You are an agent for Codex's official CLI for OpenAI. Given the user's message, you should use the tools available to complete the task. Do what has been asked; nothing more, nothing less. When you complete the task simply respond with a detailed writeup.
+
+Your strengths:
+- Searching for code, configurations, and patterns across large codebases
+- Analyzing multiple files to understand system architecture
+- Investigating complex questions that require exploring many files
+- Performing multi-step research tasks
+
+Guidelines:
+- For file searches: Use Grep or Glob when you need to search broadly. Use Read when you know the specific file path.
+- For analysis: Start broad and narrow down. Use multiple search strategies if the first doesn't yield results.
+- Be thorough: Check multiple locations, consider different naming conventions, look for related files.
+- NEVER create files unless they're absolutely necessary for achieving your goal. ALWAYS prefer editing an existing file to creating a new one.
+- NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested.
+- In your final response always share relevant file names and code snippets. Any file paths you return in your response MUST be absolute. Do NOT use relative paths.
+- For clear communication, avoid using emojis.
+`;
+        await writeTextFile(agentFilePath, defaultContent);
+        return defaultContent;
+      }
+    } catch (error) {
+      console.error("Failed to read agent file:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * 保存 ~/.codex/AGENT.md 文件
+   */
+  async saveAgentFile(content: string): Promise<void> {
+    try {
+      const homePath = await this.getHomePath();
+      const codexPath = `${homePath}/.codex`;
+      const agentFilePath = `${codexPath}/AGENT.md`;
+      
+      // 确保 .codex 目录存在
+      if (!(await exists(codexPath))) {
+        await this.createCodexDirectory();
+      }
+      
+      await writeTextFile(agentFilePath, content);
+    } catch (error) {
+      console.error("Failed to save agent file:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * 通用文件读取方法
+   */
+  async readFile(filePath: string): Promise<string> {
+    try {
+      return await readTextFile(filePath);
+    } catch (error) {
+      console.error(`Failed to read file ${filePath}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * 通用文件写入方法
+   */
+  async writeFile(filePath: string, content: string): Promise<void> {
+    try {
+      await writeTextFile(filePath, content);
+    } catch (error) {
+      console.error(`Failed to write file ${filePath}:`, error);
+      throw error;
+    }
+  }
 }
 
 export const tauriFileSystemManager = new TauriFileSystemManager();

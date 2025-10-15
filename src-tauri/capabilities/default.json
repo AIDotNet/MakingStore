@@ -19,6 +19,7 @@
       "identifier": "fs:scope",
       "allow": [
         { "path": "$HOME/.codex/**" },
+        { "path": "$HOME/**" },
         { "path": "$HOME/.claude/**" }
       ]
     }

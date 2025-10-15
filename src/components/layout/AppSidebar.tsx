@@ -22,24 +22,21 @@ export function AppSidebar() {
       <SidebarHeader>
         <Logo />
       </SidebarHeader>
-      
+
       <SidebarContent>
         <Navigation />
       </SidebarContent>
-      
+
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild>
-              <div className="flex items-center justify-between w-full">
-                {!isCollapsed && <span>主题</span>}
-                <ThemeToggle />
-              </div>
+            <SidebarMenuButton asChild>                
+              <ThemeToggle />
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
-      
+
       <SidebarRail />
     </Sidebar>
   )
