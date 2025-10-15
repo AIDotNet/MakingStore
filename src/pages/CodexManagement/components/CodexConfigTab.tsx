@@ -219,7 +219,14 @@ ignore_default_excludes = false
   // 监听主题变化，更新Monaco编辑器主题
   useEffect(() => {
     if (editorRef.current && monaco) {
-      const newTheme = resolvedTheme === 'dark' ? 'toml-dark' : 'toml-light';
+      // 处理 system 主题模式：检查系统实际主题
+      let actualTheme = resolvedTheme;
+      if (resolvedTheme === 'system') {
+        // 检查系统是否为暗色模式
+        actualTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      
+      const newTheme = actualTheme === 'dark' ? 'toml-dark' : 'toml-light';
       monaco.editor.setTheme(newTheme);
     }
   }, [resolvedTheme, monaco]);
@@ -281,7 +288,15 @@ ignore_default_excludes = false
                 language="toml"
                 value={configContent}
                 onChange={(value) => setConfigContent(value || '')}
-                theme={resolvedTheme === 'dark' ? 'toml-dark' : 'toml-light'}
+                theme={(() => {
+                  // 处理 system 主题模式：检查系统实际主题
+                  let actualTheme = resolvedTheme;
+                  if (resolvedTheme === 'system') {
+                    // 检查系统是否为暗色模式
+                    actualTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+                  }
+                  return actualTheme === 'dark' ? 'toml-dark' : 'toml-light';
+                })()}
                 onMount={(editor) => {
                   editorRef.current = editor;
                 }}

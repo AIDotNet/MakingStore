@@ -17,6 +17,8 @@ import {
   RefreshCw
 } from 'lucide-react'
 import { invoke } from '@tauri-apps/api/core'
+import { listen } from '@tauri-apps/api/event'
+import { Input } from '@/components/ui/input'
 import { ResourceManager } from '@/lib/resourceManager'
 
 interface ProcessStatus {
@@ -32,6 +34,15 @@ interface LogEntry {
   message: string
 }
 
+interface EnvVars {
+  Urls: string
+  OPENAI_API_KEY: string
+  OPENAI_ENDPOINT: string
+  TASK_MODEL: string
+  EMBEDDING_MODEL: string
+  TAVILY_API_KEY: string
+}
+
 const MCPManagement: React.FC = () => {
   const [processStatus, setProcessStatus] = useState<ProcessStatus>({ isRunning: false })
   const [isLoading, setIsLoading] = useState(false)
@@ -39,13 +50,45 @@ const MCPManagement: React.FC = () => {
   const [logs, setLogs] = useState<LogEntry[]>([])
   const [isExecutableAvailable, setIsExecutableAvailable] = useState(false)
   const [executablePath, setExecutablePath] = useState<string>('')
+  const [envVars, setEnvVars] = useState<EnvVars>({
+    Urls: 'http://localhost:6511',
+    OPENAI_API_KEY: 'Your_API_Key_Here',
+    OPENAI_ENDPOINT: 'https://api.token-ai.cn/v1',
+    TASK_MODEL: 'gpt-4.1',
+    EMBEDDING_MODEL: '',
+    TAVILY_API_KEY: ''
+  })
 
   useEffect(() => {
     checkExecutableAvailability()
     checkProcessStatus()
+
+    // 订阅后端日志事件
+    let unlistenLog: (() => void) | null = null
+    let unlistenExit: (() => void) | null = null
+    ;(async () => {
+      try {
+        unlistenLog = await listen<{ level: 'info' | 'warn' | 'error'; message: string }>('mcp-log', (event) => {
+          const payload = event.payload
+          addLog(payload.level, payload.message)
+        })
+        unlistenExit = await listen<{ code?: number }>('mcp-exit', (event) => {
+          const code = (event.payload as any)?.code
+          addLog('warn', `进程退出${code !== undefined ? `，退出码 ${code}` : ''}`)
+          setProcessStatus({ isRunning: false })
+        })
+      } catch (err) {
+        console.error('订阅日志事件失败:', err)
+      }
+    })()
+
     // 每5秒检查一次进程状态
     const interval = setInterval(checkProcessStatus, 5000)
-    return () => clearInterval(interval)
+    return () => {
+      clearInterval(interval)
+      if (unlistenLog) unlistenLog()
+      if (unlistenExit) unlistenExit()
+    }
   }, [])
 
   const checkExecutableAvailability = async () => {
@@ -85,7 +128,6 @@ const MCPManagement: React.FC = () => {
           isRunning: true,
           startTime: new Date()
         })
-        addLog('info', 'MakingMcp.Web.exe 进程正在运行')
       } else if (!isRunning && processStatus.isRunning) {
         // 进程刚停止
         setProcessStatus({ isRunning: false })
@@ -107,16 +149,14 @@ const MCPManagement: React.FC = () => {
     setError(null)
     
     try {
-      addLog('info', '正在启动 MakingMcp.Web.exe...')
-      
-      // 使用 PowerShell 启动进程
-      await invoke<string>('execute_command', {
-        command: 'powershell',
-        args: [
-          '-Command', 
-          `Start-Process -FilePath "${executablePath}" -WindowStyle Normal`
-        ]
+      addLog('info', '正在托管启动 MakingMcp.Web.exe（隐藏控制台）...')
+      const payloadEnv: Record<string, string> = {}
+      Object.entries(envVars).forEach(([k, v]) => {
+        if (v != null && v.toString().trim() !== '') {
+          payloadEnv[k] = v.toString()
+        }
       })
+      await invoke<string>('start_mcp_service', { env: payloadEnv })
       
       // 等待一段时间后检查状态
       setTimeout(() => {
@@ -138,13 +178,8 @@ const MCPManagement: React.FC = () => {
     setError(null)
     
     try {
-      addLog('info', '正在停止 MakingMcp.Web.exe...')
-      
-      // 使用 taskkill 停止进程
-      await invoke<string>('execute_command', {
-        command: 'taskkill',
-        args: ['/F', '/IM', 'MakingMcp.Web.exe']
-      })
+      addLog('info', '正在停止托管的 MakingMcp.Web.exe...')
+      await invoke<string>('stop_mcp_service')
       
       // 等待一段时间后检查状态
       setTimeout(() => {
@@ -221,6 +256,37 @@ const MCPManagement: React.FC = () => {
       error: 'text-red-600'
     }
     return colors[level]
+  }
+
+  // 环境变量输入渲染函数（在组件作用域内）
+  const renderEnvInput = (
+    label: keyof EnvVars,
+    placeholder?: string
+  ) => (
+    <div className="grid grid-cols-3 items-center gap-4">
+      <span className="text-sm text-muted-foreground">{label}</span>
+      <Input
+        className="col-span-2"
+        value={envVars[label] ?? ''}
+        placeholder={placeholder || ''}
+        onChange={(e) =>
+          setEnvVars((prev) => ({ ...prev, [label]: e.target.value }))
+        }
+      />
+    </div>
+  )
+
+  // 重置环境变量到默认值（在组件作用域内）
+  const resetDefaultEnvVars = () => {
+    setEnvVars({
+      Urls: 'http://localhost:6511',
+      OPENAI_API_KEY: 'Your_API_Key_Here',
+      OPENAI_ENDPOINT: 'https://api.token-ai.cn/v1',
+      TASK_MODEL: 'gpt-4.1',
+      EMBEDDING_MODEL: '',
+      TAVILY_API_KEY: ''
+    })
+    addLog('info', '已重置环境变量为默认值')
   }
 
   return (
@@ -358,6 +424,41 @@ const MCPManagement: React.FC = () => {
               </div>
             )}
           </ScrollArea>
+        </CardContent>
+      </Card>
+
+      {/* 环境变量卡片 */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Settings className="h-5 w-5" />
+            环境变量
+          </CardTitle>
+          <CardDescription>
+            为 MCP 服务设置启动时的环境变量（空值将被忽略）
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-3">
+            {renderEnvInput('Urls', 'http://localhost:6511')}
+            {renderEnvInput('OPENAI_API_KEY', 'Your_API_Key_Here')}
+            {renderEnvInput('OPENAI_ENDPOINT', 'https://api.token-ai.cn/v1')}
+            {renderEnvInput('TASK_MODEL', 'gpt-4.1')}
+            {renderEnvInput('EMBEDDING_MODEL', '可留空')}
+            {renderEnvInput('TAVILY_API_KEY', '可留空')}
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={resetDefaultEnvVars}>
+              重置为默认
+            </Button>
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => addLog('info', '环境变量已更新（将在启动时生效）')}
+            >
+              应用变更
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>
