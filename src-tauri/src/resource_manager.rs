@@ -93,9 +93,18 @@ impl ResourceManager {
             return Err(format!("Executable not found: {}", exe_path.display()));
         }
 
-        std::process::Command::new(&exe_path)
-            .args(args)
-            .output()
+        let mut cmd = std::process::Command::new(&exe_path);
+        cmd.args(args);
+        
+        // Windows 下隐藏控制台窗口
+        #[cfg(target_os = "windows")]
+        {
+            use std::os::windows::process::CommandExt;
+            // CREATE_NO_WINDOW = 0x08000000
+            cmd.creation_flags(0x08000000);
+        }
+        
+        cmd.output()
             .map_err(|e| format!("Failed to execute {}: {}", exe_name, e))
 
     }

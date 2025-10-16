@@ -85,6 +85,12 @@ async fn execute_command(command: String, args: Vec<String>) -> Result<String, S
         let mut cmd = Command::new("cmd");
         cmd.args(&["/C", &command]);
         cmd.args(&args);
+        // Windows 下隐藏控制台窗口
+        #[cfg(target_os = "windows")]
+        {
+            // CREATE_NO_WINDOW = 0x08000000
+            cmd.creation_flags(0x08000000);
+        }
         cmd
     } else {
         let mut cmd = Command::new(&command);
@@ -393,11 +399,91 @@ fn parse_environment_variables(env_str: &str) -> Vec<(String, String)> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    use tauri::tray::{TrayIconBuilder, MouseButton, MouseButtonState};
+    use tauri::menu::MenuEvent;
+
     tauri::Builder::default()
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .manage(McpState::default())
+        .setup(|app| {
+            // 创建托盘菜单
+            let show_item = tauri::menu::MenuItem::with_id(app, "show", "显示窗口", true, None::<&str>)?;
+            let hide_item = tauri::menu::MenuItem::with_id(app, "hide", "隐藏窗口", true, None::<&str>)?;
+            let separator = tauri::menu::PredefinedMenuItem::separator(app)?;
+            let quit_item = tauri::menu::MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
+
+            let menu = tauri::menu::Menu::with_items(
+                app,
+                &[
+                    &show_item,
+                    &hide_item,
+                    &separator,
+                    &quit_item,
+                ],
+            )?;
+
+            // 创建系统托盘图标
+            let _tray = TrayIconBuilder::new()
+                .icon(app.default_window_icon().unwrap().clone())
+                .menu(&menu)
+                .on_tray_icon_event(|tray, event| {
+                    if let tauri::tray::TrayIconEvent::Click {
+                        button: MouseButton::Left,
+                        button_state: MouseButtonState::Up,
+                        ..
+                    } = event
+                    {
+                        let app = tray.app_handle();
+                        if let Some(window) = app.get_webview_window("main") {
+                            if window.is_visible().unwrap_or(false) {
+                                let _ = window.hide();
+                            } else {
+                                let _ = window.show();
+                                let _ = window.set_focus();
+                            }
+                        }
+                    }
+                })
+                .build(app)?;
+
+            // 菜单事件处理
+            app.on_menu_event(move |app_handle, event: MenuEvent| {
+                match event.id().as_ref() {
+                    "show" => {
+                        if let Some(window) = app_handle.get_webview_window("main") {
+                            let _ = window.show();
+                            let _ = window.set_focus();
+                        }
+                    }
+                    "hide" => {
+                        if let Some(window) = app_handle.get_webview_window("main") {
+                            let _ = window.hide();
+                        }
+                    }
+                    "quit" => {
+                        std::process::exit(0);
+                    }
+                    _ => {}
+                }
+            });
+
+            // 窗口关闭事件拦截：最小化到托盘而不是退出
+            if let Some(window) = app.get_webview_window("main") {
+                let window_clone = window.clone();
+                window.on_window_event(move |event| {
+                    if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                        // 阻止默认的关闭行为
+                        api.prevent_close();
+                        // 隐藏窗口到托盘
+                        let _ = window_clone.hide();
+                    }
+                });
+            }
+
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             greet,
             select_folder,

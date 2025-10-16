@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "makingstore",
+  "productName": "MakingStore",
   "version": "0.1.4",
   "identifier": "AIDotNet",
   "build": {
@@ -12,6 +12,7 @@
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "MakingStore",
         "width": 1200,
         "height": 800,

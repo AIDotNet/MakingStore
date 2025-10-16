@@ -10,6 +10,7 @@ export function MainContent({ children }: MainContentProps) {
     <SidebarInset style={{
       paddingTop: '16px',
       paddingBottom: '16px',
+      height: 'calc(100vh - 64px)'
     }} 
     className="overflow-auto"
     >

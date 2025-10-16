@@ -1,5 +1,5 @@
 [package]
-name = "makingstore"
+name = "MakingStore"
 version = "0.1.4"
 description = "Making Store is a Tauri App for managing your Codex prompts."
 authors = ["AIDotNet"]
@@ -18,7 +18,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = [] }
+tauri = { version = "2", features = ["tray-icon"] }
 tauri-plugin-opener = "2"
 tauri-plugin-dialog = "2"
 serde = { version = "1", features = ["derive"] }
